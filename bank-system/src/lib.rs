@@ -8,7 +8,7 @@ pub struct Storage {
 }
 
 impl Storage {
-    fn new() -> Self {
+    pub fn new() -> Self {
         Storage {
             accounts: HashMap::new(),
         }
