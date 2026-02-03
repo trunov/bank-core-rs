@@ -1,0 +1,8 @@
+[package]
+name = "my-system"
+version = "0.1.0"
+edition = "2024"
+
+[dependencies]
+
+bank-system = { git = "https://github.com/trunov/bank-core-rs.git", branch = "main", subdir = "bank-system" }

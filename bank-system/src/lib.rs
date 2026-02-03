@@ -1,9 +1,9 @@
 use std::collections::HashMap;
 
-type Name = String;
+pub type Name = String;
 type Balance = i64;
 
-struct Storage {
+pub struct Storage {
     accounts: HashMap<Name, Balance>,
 }
 
