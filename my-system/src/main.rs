@@ -1,18 +1,64 @@
-use bank_system::BalanceManager;
-use bank_system::Name;
-use bank_system::Storage;
-use bank_system::UserManager;
+use bank_system::{Name, Storage};
+use std::env;
 
 fn main() {
     let mut storage = Storage::new();
 
-    let user: Name = "Mark".to_string();
+    let users = vec!["Kirill", "Alice", "Bob", "Vasya"];
+    for u in users {
+        storage.add_user(u.to_string());
+    }
 
-    let amount: i64 = 200;
+    let args: Vec<String> = env::args().collect();
 
-    storage.add_user(user.clone());
-    let _ = storage.deposit(&user, amount);
+    if args.len() < 2 {
+        eprintln!("Использование:");
+        eprintln!("  deposit <name> <amount>");
+        eprintln!("  withdraw <name> <amount>");
+        eprintln!("  balance <name>");
+        return;
+    }
 
-    println!("{:?}", storage.get_balance(&user));
-    println!("{:?}", storage.get_balance(&"Kirill".to_string()));
+    match args[1].as_str() {
+        "deposit" => {
+            if args.len() != 4 {
+                eprintln!("Wrong arguments. Example: deposit John 200");
+                return;
+            }
+
+            let name: Name = args[2].clone();
+            let amount: i64 = args[3].parse().expect("Sum must be digit");
+            match storage.deposit(&name, amount) {
+                Ok(()) => println!("Deposited: {} amount {}", name, amount),
+                Err(e) => println!("Error: {}", e),
+            }
+        }
+        "withdraw" => {
+            if args.len() != 4 {
+                eprintln!("Wrong arguments. Example: add John 200");
+                return;
+            }
+
+            let name: Name = args[2].clone();
+            let amount: i64 = args[3].parse().expect("Sum must be digit");
+            match storage.withdraw(&name, amount) {
+                Ok(()) => println!("Withdrawn: {} amount {}", name, amount),
+                Err(e) => println!("Error: {}", e),
+            }
+        }
+        "balance" => {
+            if args.len() !=3 {
+                eprintln!("Wrong arguments. Example: balance Kirill");
+                return
+            }
+            let name: Name = args[2].clone();
+            match storage.get_balance(&name) {
+                Some(b) => println!("Balance {}: {}", name, b),
+                None => println!("User {} has not been found", name),
+            }
+        }
+        _ => {
+            eprintln!("Unknown command: {}", args[1]);
+        }
+    }
 }
