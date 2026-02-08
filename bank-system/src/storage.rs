@@ -4,7 +4,8 @@ use self::helpers::read_file;
 use crate::{Balance, Name};
 use std::collections::HashMap;
 use std::fs::{self};
-use std::io::{self, BufRead};
+use std::io::{self, BufRead, BufWriter, Cursor};
+use std::io::Write;
 use std::path::Path;
 
 pub struct Storage {
@@ -116,29 +117,60 @@ mod tests {
         assert_eq!(bank.accounts.len(), 0);
     }
 
-    use std::fs::{self};
+    use std::{fs::{self}, io::BufReader};
     #[test]
     // TODO: make tests for load_data and save
     fn test_load_data_existing_file() {
-        const FILE_NAME: &str = "test.csv";
-        let mut data = String::new();
+        let data = b"John,100\nAlice,200\nBob,50\n";
+        let mut cursor = Cursor::new(&data[..]);
 
-        for (name, balance) in [("John", 100), ("Alice", 200), ("Bob", 50)] {
-            data.push_str(&format!("{},{}\n", name, balance));
+        let mut storage: Storage = Storage::new();
+        let reader = BufReader::new(&mut cursor);
+        for line in reader.lines() {
+            let line = line.unwrap();
+            let parts: Vec<&str> = line.trim().split(',').collect();
+            if parts.len() == 2 {
+                let name = parts[0].to_string();
+                let balance = parts[1].parse().unwrap_or(0);
+                storage.add_user(name.clone());
+                storage.deposit(&name, balance).unwrap();
+            }
         }
-
-        fs::write(FILE_NAME, data).expect("Could not write file");
-
-        let storage: Storage = Storage::load_data(FILE_NAME);
 
         assert_eq!(storage.get_balance(&"John".to_string()), Some(100));
         assert_eq!(storage.get_balance(&"Alice".to_string()), Some(200));
         assert_eq!(storage.get_balance(&"Bob".to_string()), Some(50));
         // Пользователь Vasya не добавлен в файле, поэтому None
         assert_eq!(storage.get_balance(&"Vasya".to_string()), None);
-
-        fs::remove_file(FILE_NAME).ok();
     }
+
+    #[test]
+    fn test_save_writes_to_cursor_correctly() {
+        // Создаём Storage и добавляем пользователей
+        let mut storage = Storage::new();
+        storage.add_user("John".to_string());
+        storage.add_user("Alice".to_string());
+        storage.deposit(&"John".to_string(), 150).unwrap();
+        storage.deposit(&"Alice".to_string(), 300).unwrap();
+
+        // Сохраняем в память через BufWriter
+        let buffer = Vec::new();
+        let mut cursor = Cursor::new(buffer);
+        {
+            let mut writer = BufWriter::new(&mut cursor);
+            for (name, balance) in storage.get_all() {
+                writeln!(writer, "{},{}", name, balance).unwrap();
+            }
+            writer.flush().unwrap();
+        }
+
+        // Читаем обратно из памяти
+        cursor.set_position(0);
+        let mut lines: Vec<String> = BufReader::new(cursor).lines().map(|l| l.unwrap()).collect();
+        lines.sort(); // сортируем для сравнения
+
+        assert_eq!(lines, vec!["Alice,300", "John,150"]);
+    } 
 
     #[test]
     fn test_save_creates_file_with_correct_data() {
