@@ -4,12 +4,102 @@ use self::helpers::read_file;
 use crate::{Balance, Name};
 use std::collections::HashMap;
 use std::fs::{self};
-use std::io::{self, BufRead, BufWriter, Cursor};
 use std::io::Write;
+use std::io::{self, BufRead, BufWriter, Cursor};
+use std::ops::Add;
 use std::path::Path;
 
+pub struct TxCombinator<T1, T2> {
+    t1: T1,
+    t2: T2,
+}
+
+impl<T1: Transaction, T2: Transaction> Transaction for TxCombinator<T1, T2> {
+    fn apply(&self, accounts: &mut Storage) -> Result<(), TxError> {
+        self.t1.apply(accounts)?;
+        self.t2.apply(accounts)?;
+        Ok(())
+    }
+}
+
+// Реализация Add для Deposit + Transfer
+impl Add<Transfer> for Deposit {
+    type Output = TxCombinator<Deposit, Transfer>;
+
+    fn add(self, rhs: Transfer) -> Self::Output {
+        TxCombinator { t1: self, t2: rhs }
+    }
+}
+
+// Реализация Add для Transfer + Deposit
+impl Add<Deposit> for Transfer {
+    type Output = TxCombinator<Transfer, Deposit>;
+
+    fn add(self, rhs: Deposit) -> Self::Output {
+        TxCombinator { t1: self, t2: rhs }
+    }
+}
+
+// Реализация Add для Deposit + Deposit
+impl Add<Deposit> for Deposit {
+    type Output = TxCombinator<Deposit, Deposit>;
+
+    fn add(self, rhs: Deposit) -> Self::Output {
+        TxCombinator { t1: self, t2: rhs }
+    }
+}
+
+// Реализация Add для Transfer + Transfer
+impl Add<Transfer> for Transfer {
+    type Output = TxCombinator<Transfer, Transfer>;
+
+    fn add(self, rhs: Transfer) -> Self::Output {
+        TxCombinator { t1: self, t2: rhs }
+    }
+}
+
+#[derive(Debug)]
+pub enum TxError {
+    InsufficientFunds,
+    InvalidAccount,
+}
+
+pub trait Transaction {
+    fn apply(&self, storage: &mut Storage) -> Result<(), TxError>;
+}
+
+pub struct Deposit {
+    pub account: String,
+    pub amount: i64,
+}
+
+pub struct Transfer {
+    pub from: String,
+    pub to: String,
+    pub amount: i64,
+}
+
+impl Transaction for Deposit {
+    fn apply(&self, storage: &mut Storage) -> Result<(), TxError> {
+        *storage.accounts.entry(self.account.clone()).or_insert(0) += self.amount;
+        Ok(())
+    }
+}
+
+impl Transaction for Transfer {
+    fn apply(&self, storage: &mut Storage) -> Result<(), TxError> {
+        let from_balance = storage.accounts.entry(self.from.clone()).or_insert(0);
+        if *from_balance < self.amount {
+            return Err(TxError::InsufficientFunds);
+        }
+        *from_balance -= self.amount;
+        *storage.accounts.entry(self.to.clone()).or_insert(0) += self.amount;
+        Ok(())
+    }
+}
+
 pub struct Storage {
-    accounts: HashMap<Name, Balance>,
+    pub accounts: HashMap<Name, Balance>,
 }
 
 impl Storage {
@@ -117,7 +207,10 @@ mod tests {
         assert_eq!(bank.accounts.len(), 0);
     }
 
-    use std::{fs::{self}, io::BufReader};
+    use std::{
+        fs::{self},
+        io::BufReader,
+    };
     #[test]
     // TODO: make tests for load_data and save
     fn test_load_data_existing_file() {
@@ -170,7 +263,7 @@ mod tests {
         lines.sort(); // сортируем для сравнения
 
         assert_eq!(lines, vec!["Alice,300", "John,150"]);
-    } 
+    }
 
     #[test]
     fn test_save_creates_file_with_correct_data() {

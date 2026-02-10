@@ -1,3 +1,4 @@
+pub mod balance;
 pub mod storage;
 
 pub type Name = String;
