@@ -1,5 +1,5 @@
 use bank_system::Name;
-use bank_system::storage::{Deposit, Storage, Transaction, Transfer};
+use bank_system::storage::{Deposit, Storage, Transaction, Transfer, Withdraw};
 
 use std::io::{self, BufRead, Write};
 
@@ -11,13 +11,12 @@ fn main() {
     println!("  add <name> <balance>          - добавить пользователя");
     println!("  remove <name>                 - удалить пользователя");
     println!("  deposit <name> <amount>       - пополнить баланс");
+    println!("  wd <name> <amount>            - пополнить баланс");
     println!("  withdraw <name> <amount>      - снять со счёта");
     println!("  balance <name>                - показать баланс");
     println!("  transfer <from> <to> <amount> - перевод");
     println!("  exit                          - выйти");
-    println!(
-        "  + deposit <name> <amount> transfer <from> <to> <amount>"
-    );
+    println!("  + deposit <name> <amount> transfer <from> <to> <amount>");
 
     let stdin = io::stdin();
     let mut stdout = io::stdout();
@@ -188,6 +187,33 @@ fn main() {
                 }
 
                 storage.save("balance.csv");
+            }
+            "wd" => {
+                if args.len() != 3 {
+                    println!("Пример: withdraw John 100");
+                    continue;
+                }
+                let name = args[1].to_string();
+                let amount: i64 = match args[2].parse() {
+                    Ok(a) => a,
+                    Err(_) => {
+                        println!("Сумма должна быть числом");
+                        continue;
+                    }
+                };
+
+                let tx = Withdraw {
+                    account: name.clone(),
+                    amount,
+                };
+
+                match tx.apply(&mut storage) {
+                    Ok(_) => {
+                        println!("Транзакция: вывод {} на {}", name, amount);
+                        storage.save("balance.csv");
+                    }
+                    Err(e) => println!("Ошибка транзакции: {:?}", e),
+                }
             }
             "exit" => break,
             _ => println!("Неизвестная команда"),

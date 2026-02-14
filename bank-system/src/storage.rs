@@ -9,9 +9,23 @@ use std::io::{self, BufRead, BufWriter, Cursor};
 use std::ops::Add;
 use std::path::Path;
 
+#[macro_export]
+macro_rules! tx_chain {
+    ($first:expr $(, $rest:expr )* $(,)?) => {{
+        let tx = $first;
+
+        $(
+            let tx = $crate::TxCombinator { t1: tx, t2: $rest };
+        )*
+        tx
+    }
+        
+    };
+}
+
 pub struct TxCombinator<T1, T2> {
-    t1: T1,
-    t2: T2,
+    pub t1: T1,
+    pub t2: T2,
 }
 
 impl<T1: Transaction, T2: Transaction> Transaction for TxCombinator<T1, T2> {
@@ -94,6 +108,23 @@ impl Transaction for Transfer {
         }
         *from_balance -= self.amount;
         *storage.accounts.entry(self.to.clone()).or_insert(0) += self.amount;
+        Ok(())
+    }
+}
+
+pub struct Withdraw {
+    pub account: String,
+    pub amount: i64,
+}
+
+impl Transaction for Withdraw {
+    fn apply(&self, storage: &mut Storage) -> Result<(), TxError> {
+        let balance = storage.accounts.entry(self.account.clone()).or_insert(0);
+        if *balance < self.amount {
+            return Err(TxError::InsufficientFunds);
+        }
+
+        *balance = self.amount;
         Ok(())
     }
 }
