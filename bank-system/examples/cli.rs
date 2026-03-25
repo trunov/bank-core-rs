@@ -1,13 +1,11 @@
-use bank_system::{Name, Storage};
+// use bank_system::balance::balance_manager::BalanceManager;
+// use bank_system::users::user_manager::UserManager;
+use bank_system::Name;
+use bank_system::storage::Storage;
 use std::env;
 
 fn main() {
-    let mut storage = Storage::new();
-
-    let users = vec!["Kirill", "Alice", "Bob", "Vasya"];
-    for u in users {
-        storage.add_user(u.to_string());
-    }
+    let mut storage = Storage::load_data("balance.csv");
 
     let args: Vec<String> = env::args().collect();
 
@@ -29,7 +27,10 @@ fn main() {
             let name: Name = args[2].clone();
             let amount: i64 = args[3].parse().expect("Sum must be digit");
             match storage.deposit(&name, amount) {
-                Ok(()) => println!("Deposited: {} amount {}", name, amount),
+                Ok(()) => {
+                    println!("Deposited: {} amount {}", name, amount);
+                    storage.save("balance.csv");
+                }
                 Err(e) => println!("Error: {}", e),
             }
         }
@@ -42,14 +43,17 @@ fn main() {
             let name: Name = args[2].clone();
             let amount: i64 = args[3].parse().expect("Sum must be digit");
             match storage.withdraw(&name, amount) {
-                Ok(()) => println!("Withdrawn: {} amount {}", name, amount),
+                Ok(()) => {
+                    println!("Withdrawn: {} amount {}", name, amount);
+                    storage.save("balance.csv");
+                }
                 Err(e) => println!("Error: {}", e),
             }
         }
         "balance" => {
-            if args.len() !=3 {
+            if args.len() != 3 {
                 eprintln!("Wrong arguments. Example: balance Kirill");
-                return
+                return;
             }
             let name: Name = args[2].clone();
             match storage.get_balance(&name) {

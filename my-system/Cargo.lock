@@ -4,8 +4,8 @@ version = 4
 
 [[package]]
 name = "bank-system"
-version = "0.1.1"
-source = "git+https://github.com/trunov/bank-core-rs.git?branch=main#d962faefee16f501c6fcbf83b426bd43afa5ba13"
+version = "0.1.2"
+source = "git+https://github.com/trunov/bank-core-rs.git?branch=main#1b19dc663749d275aa3797c05346dab20f302aad"
 
 [[package]]
 name = "my-system"
